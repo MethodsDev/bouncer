@@ -1,12 +1,12 @@
 [package]
-name = "barcode-automata"
+name = "bouncer"
 version = "0.1.0"
 authors = ["James Webber <jwebber@broadinstitute.org>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "barcode_automata"
+name = "bouncer"
 crate-type = ["cdylib"]
 
 [dependencies]

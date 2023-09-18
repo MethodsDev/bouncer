@@ -1,13 +1,13 @@
-use flate2::read::GzDecoder;
-use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
 use std::fs::File;
 use std::io::{self, prelude::*};
 use std::path::PathBuf;
 
+use flate2::read::GzDecoder;
 use hashbrown::HashSet;
 use log::{debug, info, trace};
 
 use pyo3::prelude::*;
+use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
 
 use symspell::DistanceAlgorithm;
 use symspell::{SymSpell, SymSpellBuilder, UnicodeStringStrategy, Verbosity};
@@ -53,7 +53,7 @@ impl BarcodeSet {
                 let barcode_length: HashSet<_> = barcodes.iter().map(|bc| bc.len()).collect();
                 if barcode_length.len() == 1 {
                     debug!("Built SymSpell index with {} barcodes", barcodes.len());
-                    let barcode_length = barcode_length.iter().nth(0).unwrap().clone();
+                    let barcode_length = *barcode_length.iter().next().unwrap();
                     Ok(BarcodeSet {
                         symspell,
                         max_dist,
@@ -69,7 +69,7 @@ impl BarcodeSet {
                 Err(PyIOError::new_err("Error reading barcode file"))
             }
         } else {
-            return Err(PyRuntimeError::new_err("Error building symspell"));
+            Err(PyRuntimeError::new_err("Error building symspell"))
         }
     }
 
@@ -94,7 +94,7 @@ impl BarcodeSet {
         trace!("Searching for {} queries", queries.len());
 
         let suggestions = self.symspell.exact_lookup_batch(&queries);
-        if suggestions.len() > 0 {
+        if !suggestions.is_empty() {
             return Ok(suggestions
                 .iter()
                 .map(|s| (s.term.clone(), s.term.clone(), s.distance))
@@ -106,7 +106,7 @@ impl BarcodeSet {
             .flat_map(|q| self.symspell.lookup(q, Verbosity::Closest, self.max_dist))
             .collect();
 
-        if suggestions.len() == 0 {
+        if suggestions.is_empty() {
             return Ok(Vec::new());
         }
 
@@ -143,65 +143,12 @@ impl BarcodeSet {
     }
 }
 
-#[pyfunction]
-fn check_symspell(barcode_file: PathBuf, q: &str, max_dist: i64) -> PyResult<Vec<(String, i64)>> {
-    let mut symspell: SymSpell<UnicodeStringStrategy> = SymSpellBuilder::default()
-        .max_dictionary_edit_distance(max_dist)
-        .prefix_length(16)
-        .distance_algorithm(DistanceAlgorithm::Levenshtein)
-        .build()
-        .unwrap();
-
-    debug!("Reading the barcode file");
-    let barcodes = read_barcodes(barcode_file)?;
-
-    debug!("Loading barcodes");
-    for bc in barcodes.iter() {
-        symspell.create_dictionary_entry(bc);
-    }
-    // symspell.load_dictionary(barcode_file, 0, 1, "\t");
-
-    debug!("Searching for {}", q);
-    let suggestions = symspell.lookup(q, Verbosity::Closest, max_dist);
-
-    debug!("Done, found {} suggestions", suggestions.len());
-    Ok(suggestions
-        .iter()
-        .map(|s| (s.term.clone(), s.distance))
-        .collect())
-}
-
-/// Takes a query and a whitelist of barcodes. Builds a DFA for each barcode
-/// in the whitelist and checks the query
-// #[pyfunction]
-// fn check_query(barcode_file: PathBuf, q: &str, max_dist: u8) -> PyResult<Vec<u8>> {
-//     debug!("Reading the barcodes");
-//     let barcodes = read_barcodes(barcode_file)?;
-
-//     debug!("Building all the automata");
-//     let automata = build_automata(&barcodes, max_dist);
-
-//     debug!("Searching for {}", q);
-//     let res = automata
-//         .iter()
-//         .map(|a| match a.eval(q) {
-//             Distance::Exact(i) => i,
-//             Distance::AtLeast(i) => i,
-//         })
-//         .collect();
-//     debug!("Done");
-
-//     Ok(res)
-// }
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn barcode_automata(_py: Python, m: &PyModule) -> PyResult<()> {
+fn bouncer(_py: Python, m: &PyModule) -> PyResult<()> {
     pyo3_log::init();
 
-    // m.add_function(wrap_pyfunction!(check_rocks, m)?)?;
     m.add_class::<BarcodeSet>()?;
-    m.add_function(wrap_pyfunction!(check_symspell, m)?)?;
-    // m.add_function(wrap_pyfunction!(check_query, m)?)?;
     Ok(())
 }
