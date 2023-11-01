@@ -10,7 +10,7 @@ use pyo3::prelude::*;
 use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
 
 use symspell::DistanceAlgorithm;
-use symspell::{SymSpell, SymSpellBuilder, UnicodeStringStrategy, Verbosity};
+use symspell::{SymSpell, SymSpellBuilder, Verbosity};
 
 fn read_barcodes(barcode_file: PathBuf) -> io::Result<Vec<String>> {
     let file = File::open(barcode_file)?;
@@ -21,7 +21,7 @@ fn read_barcodes(barcode_file: PathBuf) -> io::Result<Vec<String>> {
 
 #[pyclass(frozen)]
 struct BarcodeSet {
-    symspell: SymSpell<UnicodeStringStrategy>,
+    symspell: SymSpell,
     #[pyo3(get)]
     max_dist: i64,
     #[pyo3(get)]
