@@ -9,7 +9,6 @@ use log::{debug, info, trace};
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
 
-use symspell::DistanceAlgorithm;
 use symspell::{SymSpell, SymSpellBuilder, Verbosity};
 
 fn read_barcodes(barcode_file: PathBuf) -> io::Result<Vec<String>> {
@@ -39,7 +38,6 @@ impl BarcodeSet {
         let builder = SymSpellBuilder::default()
             .max_dictionary_edit_distance(max_dist)
             .prefix_length(prefix_length)
-            .distance_algorithm(DistanceAlgorithm::Levenshtein)
             .build();
 
         if let Ok(mut symspell) = builder {
