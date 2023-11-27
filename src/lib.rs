@@ -6,10 +6,10 @@ use flate2::read::GzDecoder;
 use hashbrown::HashSet;
 use log::{debug, info, trace};
 
-use pyo3::prelude::*;
 use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
+use pyo3::prelude::*;
 
-use symspell::{SymSpell, SymSpellBuilder, Verbosity};
+use symspell::{SymSpell, SymSpellBuilder};
 
 fn read_barcodes(barcode_file: PathBuf) -> io::Result<Vec<String>> {
     let file = File::open(barcode_file)?;
@@ -22,9 +22,9 @@ fn read_barcodes(barcode_file: PathBuf) -> io::Result<Vec<String>> {
 struct BarcodeSet {
     symspell: SymSpell,
     #[pyo3(get)]
-    max_dist: i64,
+    max_dist: usize,
     #[pyo3(get)]
-    prefix_length: i64,
+    split_length: usize,
     #[pyo3(get)]
     barcode_length: usize,
 }
@@ -34,35 +34,35 @@ impl BarcodeSet {
     /// construct a BarcodeSet, which is a set of barcodes stored in a symspell index
     /// for fast lookup and error correction
     #[new]
-    fn py_new(barcode_file: PathBuf, max_dist: i64, prefix_length: i64) -> PyResult<Self> {
+    fn py_new(barcode_file: PathBuf, max_dist: usize, split_length: usize) -> PyResult<Self> {
         let builder = SymSpellBuilder::default()
             .max_dictionary_edit_distance(max_dist)
-            .prefix_length(prefix_length)
+            .split_length(split_length)
             .build();
 
         if let Ok(mut symspell) = builder {
             info!("Reading barcodes from {}", barcode_file.display());
             if let Ok(barcodes) = read_barcodes(barcode_file) {
                 info!("Loading barcodes");
+                let barcode_length: HashSet<_> = barcodes.iter().map(|bc| bc.len()).collect();
+                if barcode_length.len() != 1 {
+                    return Err(PyValueError::new_err(
+                        "Found barcodes with multiple lengths",
+                    ));
+                }
+
                 for bc in barcodes.iter() {
                     symspell.create_dictionary_entry(bc);
                 }
 
-                let barcode_length: HashSet<_> = barcodes.iter().map(|bc| bc.len()).collect();
-                if barcode_length.len() == 1 {
-                    debug!("Built SymSpell index with {} barcodes", barcodes.len());
-                    let barcode_length = *barcode_length.iter().next().unwrap();
-                    Ok(BarcodeSet {
-                        symspell,
-                        max_dist,
-                        prefix_length,
-                        barcode_length,
-                    })
-                } else {
-                    Err(PyValueError::new_err(
-                        "Found barcodes with multiple lengths",
-                    ))
-                }
+                debug!("Built SymSpell index with {} barcodes", barcodes.len());
+                let barcode_length = *barcode_length.iter().next().unwrap();
+                Ok(BarcodeSet {
+                    symspell,
+                    max_dist,
+                    split_length,
+                    barcode_length,
+                })
             } else {
                 Err(PyIOError::new_err("Error reading barcode file"))
             }
@@ -73,11 +73,9 @@ impl BarcodeSet {
 
     /// Looks up a single word and returns all the closest suggestions (i.e. all words
     /// in the collection at the best distance), or an empty list if none are found.
-    fn lookup(&self, query: &str) -> PyResult<Vec<(String, String, i64)>> {
+    fn lookup(&self, query: &str) -> PyResult<Vec<(String, String, usize)>> {
         trace!("Searching for {}", query);
-        let suggestions = self
-            .symspell
-            .lookup(query, Verbosity::Closest, self.max_dist);
+        let suggestions = self.symspell.lookup(query, self.max_dist);
 
         Ok(suggestions
             .iter()
@@ -88,7 +86,7 @@ impl BarcodeSet {
 
     /// Looks up a batch of related strings to see if together they match to a single
     /// word. Returns all matches at the minimum distance, or an empty list.
-    fn lookup_batch(&self, queries: HashSet<&str>) -> PyResult<Vec<(String, String, i64)>> {
+    fn lookup_batch(&self, queries: HashSet<&str>) -> PyResult<Vec<(String, String, usize)>> {
         trace!("Searching for {} queries", queries.len());
 
         let suggestions = self.symspell.exact_lookup_batch(&queries);
@@ -101,7 +99,7 @@ impl BarcodeSet {
 
         let suggestions: Vec<_> = queries
             .iter()
-            .flat_map(|q| self.symspell.lookup(q, Verbosity::Closest, self.max_dist))
+            .flat_map(|q| self.symspell.lookup(q, self.max_dist))
             .collect();
 
         if suggestions.is_empty() {
@@ -121,7 +119,7 @@ impl BarcodeSet {
 
     /// Takes a string and look up all substrings that might plausibly be in the barcode
     /// set. This is based on max edit distance and barcode length
-    fn lookup_substrings(&self, query: &str) -> PyResult<Vec<(String, String, i64)>> {
+    fn lookup_substrings(&self, query: &str) -> PyResult<Vec<(String, String, usize)>> {
         let max_dist = self.max_dist as usize;
         if query.len() < (self.barcode_length - max_dist) {
             return Ok(Vec::new());
@@ -140,7 +138,6 @@ impl BarcodeSet {
         self.lookup_batch(queries)
     }
 }
-
 
 /// A Python module implemented in Rust.
 #[pymodule]
