@@ -9,7 +9,7 @@ use log::{debug, info, trace};
 use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 
-use symspell::{SymSpell, SymSpellBuilder};
+use barcode_symspell::{SymSpell, SymSpellBuilder};
 
 fn read_barcodes(barcode_file: PathBuf) -> io::Result<Vec<String>> {
     let file = File::open(barcode_file)?;
