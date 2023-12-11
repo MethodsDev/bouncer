@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["James Webber <jwebber@broadinstitute.org>"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "bouncer"
 crate-type = ["cdylib"]
@@ -16,4 +15,4 @@ log = "0.4.20"
 pyo3 = { version = "0.19.2", features = ["extension-module", "hashbrown"] }
 pyo3-log = "0.8.3"
 serde = "1.0.188"
-barcode-symspell = {path = "../symspell"}
+barcode-symspell = {path = "../barcode-symspell"}
