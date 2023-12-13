@@ -15,4 +15,4 @@ log = "0.4.20"
 pyo3 = { version = "0.19.2", features = ["extension-module", "hashbrown"] }
 pyo3-log = "0.8.3"
 serde = "1.0.188"
-barcode-symspell = {path = "../barcode-symspell"}
+barcode-symspell = {path = "./barcode-symspell"}

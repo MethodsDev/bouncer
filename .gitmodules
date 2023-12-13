@@ -1,0 +1,3 @@
+[submodule "barcode-symspell"]
+	path = barcode-symspell
+	url = git@github.com:MethodsDev/barcode-symspell.git
