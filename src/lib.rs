@@ -51,9 +51,7 @@ impl BarcodeSet {
                     ));
                 }
 
-                for bc in barcodes.iter() {
-                    symspell.create_dictionary_entry(bc);
-                }
+                symspell.load_from(&barcodes);
 
                 debug!("Built SymSpell index with {} barcodes", barcodes.len());
                 let barcode_length = *barcode_length.iter().next().unwrap();
