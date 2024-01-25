@@ -34,6 +34,7 @@ impl BarcodeSet {
     /// construct a BarcodeSet, which is a set of barcodes stored in a symspell index
     /// for fast lookup and error correction
     #[new]
+    #[pyo3(signature = (barcode_file, max_dist=1, split_length=8))]
     fn py_new(barcode_file: PathBuf, max_dist: usize, split_length: usize) -> PyResult<Self> {
         let builder = SymSpellBuilder::default()
             .max_dictionary_edit_distance(max_dist)
