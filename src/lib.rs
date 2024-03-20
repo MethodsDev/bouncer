@@ -1,9 +1,9 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, prelude::*};
 use std::path::PathBuf;
 
 use flate2::read::GzDecoder;
-use hashbrown::HashSet;
 use log::{debug, info, trace};
 
 use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
