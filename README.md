@@ -19,3 +19,45 @@ git clone --recurse-submodules git@github.com:MethodsDev/bouncer.git
 cd bouncer
 pip install .
 ```
+
+### Usage
+
+Construct a `BarcodeSet` from a list of strings:
+
+```python
+some_barcodes = [
+    "AGTGTGGCTTGCGGAC",
+    "TGAACGGAGGAAGATA",
+    "GAAGAACTACCTACGT",
+    "TTGCTCACAACTCGCA",
+    "CCTAGTAATCGCCGTG",
+]
+
+barcode_set = bouncer.BarcodeSet(some_barcodes, max_dist=3)
+```
+
+Or load a whitelist from a `txt.gz` file:
+
+```python
+barcode_set = bouncer.BarcodeSet.load_from("some_barcodes.txt.gz")
+```
+
+Look up a single string and find the best match:
+
+```python
+barcode_set.lookup("AGTGTGGCTTGCGGAC")
+
+# returns (best match, query, distance)
+[("AGTGTGGCTTGCGGAC", "AGTGTGGCTTGCGGAC", 0)]
+```
+
+Given a long string, look up all the substrings that might be in the index and return the best match. This is useful when there are fuzzy boundaries around the barcode location:
+
+```python
+barcode_set.lookup_substrings("GTGAGAGTGTGGCTTGCGGAGCATAGA")
+
+# returns (note multiple equivalent results at distance 1)
+[("AGTGTGGCTTGCGGAC", "AGTGTGGCTTGCGGAGC", 1),
+ ("AGTGTGGCTTGCGGAC", "AGTGTGGCTTGCGGA", 1),
+ ("AGTGTGGCTTGCGGAC", "AGTGTGGCTTGCGGAG", 1)]
+ ```
