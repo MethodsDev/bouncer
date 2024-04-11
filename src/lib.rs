@@ -119,15 +119,14 @@ impl BarcodeSet {
     /// Takes a string and look up all substrings that might plausibly be in the barcode
     /// set. This is based on max edit distance and barcode length
     fn lookup_substrings(&self, query: &str) -> PyResult<Vec<(String, String, usize)>> {
-        let max_dist = self.max_dist as usize;
-        if query.len() < (self.barcode_length - max_dist) {
+        if query.len() < (self.barcode_length - self.max_dist) {
             return Ok(Vec::new());
         }
         let mut queries = HashSet::new();
 
-        for i in 0..(query.len() - self.barcode_length + 2 * max_dist) {
-            for j in 0..(2 * max_dist + 1) {
-                let k = i + j + self.barcode_length - max_dist;
+        for i in 0..(query.len() - self.barcode_length + 2 * self.max_dist) {
+            for j in 0..(2 * self.max_dist + 1) {
+                let k = i + j + self.barcode_length - self.max_dist;
                 if k <= query.len() {
                     queries.insert(&query[i..k]);
                 }
