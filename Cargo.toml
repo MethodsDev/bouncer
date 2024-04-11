@@ -1,6 +1,6 @@
 [package]
 name = "bouncer"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["James Webber <jwebber@broadinstitute.org>"]
 edition = "2021"
 
@@ -12,6 +12,6 @@ crate-type = ["cdylib"]
 flate2 = "1.0.28"
 log = "0.4.21"
 pyo3 = { version = "0.20.0", features = ["extension-module"] }
-pyo3-log = "0.8.3"
-serde = "1.0.188"
+pyo3-log = "0.8.4"
+serde = "1.0.197"
 barcode-symspell = {path = "./barcode-symspell"}

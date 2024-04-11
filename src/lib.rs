@@ -31,42 +31,48 @@ struct BarcodeSet {
 
 #[pymethods]
 impl BarcodeSet {
-    /// construct a BarcodeSet, which is a set of barcodes stored in a symspell index
-    /// for fast lookup and error correction
+    /// construct a BarcodeSet: a set of barcodes stored in a symspell index
+    /// for fast lookup and error correction. Barcodes should all be the same length.
     #[new]
-    #[pyo3(signature = (barcode_file, max_dist=1, split_length=8))]
-    fn py_new(barcode_file: PathBuf, max_dist: usize, split_length: usize) -> PyResult<Self> {
+    #[pyo3(signature = (barcodes, max_dist=1, split_length=8))]
+    fn py_new(barcodes: Vec<String>, max_dist: usize, split_length: usize) -> PyResult<Self> {
         let builder = SymSpellBuilder::default()
             .max_dictionary_edit_distance(max_dist)
             .split_length(split_length)
             .build();
 
         if let Ok(mut symspell) = builder {
-            info!("Reading barcodes from {}", barcode_file.display());
-            if let Ok(barcodes) = read_barcodes(barcode_file) {
-                info!("Loading barcodes");
-                let barcode_length: HashSet<_> = barcodes.iter().map(|bc| bc.len()).collect();
-                if barcode_length.len() != 1 {
-                    return Err(PyValueError::new_err(
-                        "Found barcodes with multiple lengths",
-                    ));
-                }
-
-                symspell.load_from(&barcodes);
-
-                debug!("Built SymSpell index with {} barcodes", barcodes.len());
-                let barcode_length = *barcode_length.iter().next().unwrap();
-                Ok(BarcodeSet {
-                    symspell,
-                    max_dist,
-                    split_length,
-                    barcode_length,
-                })
-            } else {
-                Err(PyIOError::new_err("Error reading barcode file"))
+            let barcode_length: HashSet<_> = barcodes.iter().map(|bc| bc.len()).collect();
+            if barcode_length.len() != 1 {
+                return Err(PyValueError::new_err(
+                    "Found barcodes with multiple lengths",
+                ));
             }
+
+            symspell.load_from(&barcodes);
+
+            debug!("Built SymSpell index with {} barcodes", barcodes.len());
+            let barcode_length = *barcode_length.iter().next().unwrap();
+            Ok(BarcodeSet {
+                symspell,
+                max_dist,
+                split_length,
+                barcode_length,
+            })
         } else {
             Err(PyRuntimeError::new_err("Error building symspell"))
+        }
+    }
+
+    /// construct a BarcodeSet from a whitelist of barcodes in a txt.gz file
+    #[staticmethod]
+    #[pyo3(signature = (barcode_file, max_dist=1, split_length=8))]
+    fn load_from(barcode_file: PathBuf, max_dist: usize, split_length: usize) -> PyResult<Self> {
+        info!("Reading barcodes from {}", barcode_file.display());
+        if let Ok(barcodes) = read_barcodes(barcode_file) {
+            BarcodeSet::py_new(barcodes, max_dist, split_length)
+        } else {
+            Err(PyIOError::new_err("Error reading barcode file"))
         }
     }
 
