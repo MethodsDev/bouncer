@@ -29,6 +29,41 @@ struct BarcodeSet {
     barcode_length: usize,
 }
 
+impl BarcodeSet {
+    /// Looks up a batch of related strings to see if together they match to a single
+    /// word. Returns all matches at the minimum distance, or an empty list.
+    fn lookup_batch(&self, queries: HashSet<&str>) -> Vec<(String, String, usize)> {
+        trace!("Searching for {} queries", queries.len());
+
+        let suggestions = self.symspell.exact_lookup_batch(&queries);
+        if !suggestions.is_empty() {
+            return suggestions
+                .iter()
+                .map(|s| (s.term.clone(), s.term.clone(), s.distance))
+                .collect();
+        }
+
+        let suggestions: Vec<_> = queries
+            .iter()
+            .flat_map(|q| self.symspell.lookup(q, self.max_dist))
+            .collect();
+
+        if suggestions.is_empty() {
+            return Vec::new();
+        }
+
+        let min_dist = suggestions.iter().map(|s| s.distance).min().unwrap();
+        let suggestions: HashSet<_> = suggestions
+            .iter()
+            .filter(|s| s.distance == min_dist)
+            .cloned()
+            .map(|s| (s.term, s.query, s.distance))
+            .collect();
+
+        suggestions.iter().cloned().collect()
+    }
+}
+
 #[pymethods]
 impl BarcodeSet {
     /// construct a BarcodeSet: a set of barcodes stored in a symspell index
@@ -89,39 +124,6 @@ impl BarcodeSet {
             .collect())
     }
 
-    /// Looks up a batch of related strings to see if together they match to a single
-    /// word. Returns all matches at the minimum distance, or an empty list.
-    fn lookup_batch(&self, queries: HashSet<&str>) -> PyResult<Vec<(String, String, usize)>> {
-        trace!("Searching for {} queries", queries.len());
-
-        let suggestions = self.symspell.exact_lookup_batch(&queries);
-        if !suggestions.is_empty() {
-            return Ok(suggestions
-                .iter()
-                .map(|s| (s.term.clone(), s.term.clone(), s.distance))
-                .collect());
-        }
-
-        let suggestions: Vec<_> = queries
-            .iter()
-            .flat_map(|q| self.symspell.lookup(q, self.max_dist))
-            .collect();
-
-        if suggestions.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let min_dist = suggestions.iter().map(|s| s.distance).min().unwrap();
-        let suggestions: HashSet<_> = suggestions
-            .iter()
-            .filter(|s| s.distance == min_dist)
-            .cloned()
-            .map(|s| (s.term, s.query, s.distance))
-            .collect();
-
-        Ok(suggestions.iter().cloned().collect())
-    }
-
     /// Takes a string and look up all substrings that might plausibly be in the barcode
     /// set. This is based on max edit distance and barcode length
     fn lookup_substrings(&self, query: &str) -> PyResult<Vec<(String, String, usize)>> {
@@ -139,13 +141,13 @@ impl BarcodeSet {
             }
         }
 
-        self.lookup_batch(queries)
+        Ok(self.lookup_batch(queries))
     }
 }
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn bouncer(_py: Python, m: &PyModule) -> PyResult<()> {
+fn bouncer(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 
     m.add_class::<BarcodeSet>()?;
